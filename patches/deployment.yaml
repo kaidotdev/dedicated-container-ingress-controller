@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dedicated-container-ingress-controller
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    spec:
+      containers:
+        - name: dedicated-container-ingress-controller
+          image: dedicated-container-ingress-controller
+          imagePullPolicy: Never
+          args:
+            - server
+            - --api-address=0.0.0.0:8000
+            - --monitor-address=0.0.0.0:9090
+            - --redis-host=127.0.0.1
+            - --enable-profiling
+            - --enable-tracing
+            - --pods-limit=1
+        - name: redis
+          image: redis:5.0.6
+          imagePullPolicy: Always

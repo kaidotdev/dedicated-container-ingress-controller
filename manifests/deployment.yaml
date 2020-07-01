@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dedicated-container-ingress-controller
+spec:
+  replicas: 4
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: dedicated-container-ingress-controller
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/scheme: "http"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+      labels:
+        app: dedicated-container-ingress-controller
+    spec:
+      serviceAccountName: dedicated-container-ingress-controller
+      securityContext:
+        sysctls:
+          # https://github.com/kubernetes/kubernetes/pull/54896
+          #- name: net.core.somaxconn
+          #  value: "65535"
+          - name: net.ipv4.ip_local_port_range
+            value: "10000 65535"
+          - name: net.ipv4.tcp_syncookies
+            value: "1"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - dedicated-container-ingress-controller
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+      containers:
+        - name: dedicated-container-ingress-controller
+          image: docker.pkg.github.com/kaidotdev/workspace/dedicated-container-ingress-controller:v1.0.0
+          imagePullPolicy: Always
+          args:
+            - server
+            - --api-address=0.0.0.0:8000
+            - --monitor-address=0.0.0.0:9090
+            - --redis-host=redis
+            - --enable-tracing
+            - --pods-limit=50
+          env:
+            - name: GOGC
+              value: "100"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 1
+            successThreshold: 3
+            failureThreshold: 1
+            timeoutSeconds: 1
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "3"]
