@@ -46,7 +46,7 @@ spec:
               weight: 100
       containers:
         - name: dedicated-container-ingress-controller
-          image: docker.pkg.github.com/kaidotdev/workspace/dedicated-container-ingress-controller:v1.0.0
+          image: ghcr.io/kaidotdev/dedicated-container-ingress-controller:v0.1.1
           imagePullPolicy: Always
           args:
             - server
